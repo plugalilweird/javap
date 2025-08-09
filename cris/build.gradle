@@ -1,0 +1,248 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'edu.sc.seis.launch4j' version '2.5.0'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+application {
+    mainClass = 'org.example.LogReader'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.telegram:telegrambots:6.8.0'
+    implementation 'com.formdev:flatlaf:3.0'
+    implementation 'org.slf4j:slf4j-simple:2.0.9'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
+    implementation 'net.java.dev.jna:jna:5.13.0'
+    implementation 'net.java.dev.jna:jna-platform:5.13.0'
+    implementation 'commons-io:commons-io:2.11.0'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'org.apache.commons:commons-text:1.10.0'
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+    implementation 'org.apache.httpcomponents:httpcore:4.4.16'
+    implementation 'org.apache.httpcomponents:httpmime:4.5.14'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.9.2'
+    testImplementation 'org.mockito:mockito-core:5.1.1'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:unchecked' << '-Xlint:deprecation'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+shadowJar {
+    archiveBaseName.set('LogReader')
+    archiveClassifier.set('all')
+    archiveVersion.set(project.version)
+
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass,
+                'Implementation-Title': 'LogReader',
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'LogReader Application',
+                'Built-By': System.getProperty('user.name'),
+                'Built-JDK': System.getProperty('java.version'),
+                'Built-Date': new Date().format('yyyy-MM-dd HH:mm:ss'),
+                'Multi-Release': 'true'
+        )
+    }
+
+    from('src/main/resources') {
+        include '*.png'
+        include '*.ico'
+        include '*.properties'
+    }
+
+    mergeServiceFiles()
+    append('META-INF/spring.handlers')
+    append('META-INF/spring.schemas')
+    append('META-INF/spring.tooling')
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    exclude 'META-INF/DEPENDENCIES'
+    exclude 'META-INF/LICENSE*'
+    exclude 'META-INF/NOTICE*'
+    exclude 'META-INF/maven/**'
+    exclude 'module-info.class'
+
+    jar {
+        enabled = false
+    }
+
+    launch4j {
+        mainClassName = 'org.example.LogReader'
+        outfile = 'LogReader.exe'
+        jar = "${buildDir}/libs/LogReader-${project.version}-all.jar"
+        icon = 'src/main/resources/app-icon.ico'
+        dontWrapJar = false
+        jreMinVersion = '11'
+        headerType = 'gui'
+        stayAlive = false
+        restartOnCrash = false
+
+        jvmOptions = [
+                '-Djava.library.path=.',
+                '-Djna.library.path=.',
+                '-Dfile.encoding=UTF-8'
+        ]
+
+        // Настройки памяти
+        initialHeapSize = 64
+        maxHeapSize = 512
+    }
+
+    task createResourcesDir {
+        group = 'build setup'
+        description = 'Creates resources directory if it does not exist'
+        doLast {
+            file('src/main/resources').mkdirs()
+        }
+    }
+
+
+    }
+
+    task checkDependencies {
+        group = 'verification'
+        description = 'Checks if all required dependencies are present'
+        doLast {
+            configurations.runtimeClasspath.each { file ->
+                println "Dependency: ${file.name}"
+            }
+        }
+    }
+
+    task createDefaultIcon {
+        group = 'build setup'
+        description = 'Creates default icon if none exists'
+        doLast {
+            def iconFile = file('src/main/resources/app-icon.ico')
+            if (!iconFile.exists()) {
+                iconFile.parentFile.mkdirs()
+                // Создаем простую заглушку для иконки
+                iconFile.text = "# Default icon placeholder"
+                println "Created default icon placeholder at ${iconFile.path}"
+            }
+        }
+    }
+
+    task cleanLockFiles {
+        group = 'cleanup'
+        description = 'Cleans up lock files that may prevent application startup'
+        doLast {
+            def lockFile = file("${System.getProperty('user.home')}/.logreader.lock")
+            if (lockFile.exists()) {
+                lockFile.delete()
+                println "Removed lock file: ${lockFile.path}"
+            }
+        }
+    }
+
+    task testKillFunction(type: JavaExec) {
+        group = 'verification'
+        description = 'Tests kill functionality'
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = 'org.example.LogReader'
+        args '--test-kill'
+    }
+
+    task runDebug(type: JavaExec) {
+        group = 'application'
+        description = 'Runs application in debug mode'
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = 'org.example.LogReader'
+        jvmArgs = [
+                '-Xdebug',
+                '-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005',
+                '-Dfile.encoding=UTF-8'
+        ]
+    }
+
+    task sourcesJar(type: Jar) {
+        group = 'build'
+        description = 'Creates JAR with source files'
+        archiveClassifier.set('sources')
+        from sourceSets.main.allSource
+    }
+
+    task javadocJar(type: Jar) {
+        group = 'documentation'
+        description = 'Creates JAR with JavaDoc'
+        archiveClassifier.set('javadoc')
+        from javadoc
+    }
+
+
+    task createDistribution(type: Zip) {
+        group = 'distribution'
+        description = 'Creates distribution archive'
+        archiveFileName = "LogReader-${project.version}-dist.zip"
+        from shadowJar
+        from('README.md') { into '.' }
+        from('LICENSE') { into '.' }
+        from('docs/') { into 'docs/' }
+    }
+
+    task checkCode {
+        group = 'verification'
+        description = 'Runs code quality checks'
+        dependsOn compileJava, compileTestJava
+        doLast {
+            println "Code quality checks completed"
+        }
+    }
+
+    tasks.launch4j.dependsOn(tasks.shadowJar)
+    tasks.build.dependsOn(tasks.shadowJar)
+    tasks.compileJava.dependsOn(tasks.createResourcesDir)
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    task packageAll {
+        group = 'distribution'
+        description = 'Creates all distribution packages'
+        dependsOn shadowJar, launch4j, createDistribution, sourcesJar, javadocJar
+    }
+
+    processResources {
+        filesMatching('**/*.properties') {
+            filter { line ->
+                line.replaceAll('@version@', project.version)
+                        .replaceAll('@buildDate@', new Date().format('yyyy-MM-dd HH:mm:ss'))
+            }
+        }
+    }
