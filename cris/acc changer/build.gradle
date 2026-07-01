@@ -1,0 +1,52 @@
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.13'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // JavaFX модули
+    implementation "org.openjfx:javafx-controls:${javafx.version}"
+    implementation "org.openjfx:javafx-fxml:${javafx.version}"
+
+    // Jackson для работы с JSON
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
+}
+
+javafx {
+    version = '21.0.7'
+    modules = [ 'javafx.controls', 'javafx.fxml' ]
+}
+
+application {
+    mainClass = 'org.example.CristalixAccountChanger'
+}
+
+// Для сборки fat‑jar (опционально)
+tasks.register('fatJar', Jar) {
+    archiveClassifier.set('all')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.filter { it.name.endsWith('jar') }.collect { zipTree(it) }
+    }
+
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}

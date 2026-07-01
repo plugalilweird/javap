@@ -9,7 +9,7 @@ group = 'org.example'
 version = '1.0-SNAPSHOT'
 
 application {
-    mainClass = 'org.example.LogReader'
+    mainClass = 'org.example.PlayerTracker'
 }
 
 repositories {
@@ -17,6 +17,7 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.github.kwhat:jnativehook:2.2.2'
     implementation 'org.telegram:telegrambots:6.8.0'
     implementation 'com.formdev:flatlaf:3.0'
     implementation 'org.slf4j:slf4j-simple:2.0.9'
@@ -132,117 +133,117 @@ shadowJar {
     }
 
 
-    }
+}
 
-    task checkDependencies {
-        group = 'verification'
-        description = 'Checks if all required dependencies are present'
-        doLast {
-            configurations.runtimeClasspath.each { file ->
-                println "Dependency: ${file.name}"
-            }
+task checkDependencies {
+    group = 'verification'
+    description = 'Checks if all required dependencies are present'
+    doLast {
+        configurations.runtimeClasspath.each { file ->
+            println "Dependency: ${file.name}"
         }
     }
+}
 
-    task createDefaultIcon {
-        group = 'build setup'
-        description = 'Creates default icon if none exists'
-        doLast {
-            def iconFile = file('src/main/resources/app-icon.ico')
-            if (!iconFile.exists()) {
-                iconFile.parentFile.mkdirs()
-                // Создаем простую заглушку для иконки
-                iconFile.text = "# Default icon placeholder"
-                println "Created default icon placeholder at ${iconFile.path}"
-            }
+task createDefaultIcon {
+    group = 'build setup'
+    description = 'Creates default icon if none exists'
+    doLast {
+        def iconFile = file('src/main/resources/app-icon.ico')
+        if (!iconFile.exists()) {
+            iconFile.parentFile.mkdirs()
+            // Создаем простую заглушку для иконки
+            iconFile.text = "# Default icon placeholder"
+            println "Created default icon placeholder at ${iconFile.path}"
         }
     }
+}
 
-    task cleanLockFiles {
-        group = 'cleanup'
-        description = 'Cleans up lock files that may prevent application startup'
-        doLast {
-            def lockFile = file("${System.getProperty('user.home')}/.logreader.lock")
-            if (lockFile.exists()) {
-                lockFile.delete()
-                println "Removed lock file: ${lockFile.path}"
-            }
+task cleanLockFiles {
+    group = 'cleanup'
+    description = 'Cleans up lock files that may prevent application startup'
+    doLast {
+        def lockFile = file("${System.getProperty('user.home')}/.logreader.lock")
+        if (lockFile.exists()) {
+            lockFile.delete()
+            println "Removed lock file: ${lockFile.path}"
         }
     }
+}
 
-    task testKillFunction(type: JavaExec) {
-        group = 'verification'
-        description = 'Tests kill functionality'
-        classpath = sourceSets.main.runtimeClasspath
-        mainClass = 'org.example.LogReader'
-        args '--test-kill'
+task testKillFunction(type: JavaExec) {
+    group = 'verification'
+    description = 'Tests kill functionality'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.example.LogReader'
+    args '--test-kill'
+}
+
+task runDebug(type: JavaExec) {
+    group = 'application'
+    description = 'Runs application in debug mode'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.example.LogReader'
+    jvmArgs = [
+            '-Xdebug',
+            '-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005',
+            '-Dfile.encoding=UTF-8'
+    ]
+}
+
+task sourcesJar(type: Jar) {
+    group = 'build'
+    description = 'Creates JAR with source files'
+    archiveClassifier.set('sources')
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar) {
+    group = 'documentation'
+    description = 'Creates JAR with JavaDoc'
+    archiveClassifier.set('javadoc')
+    from javadoc
+}
+
+
+task createDistribution(type: Zip) {
+    group = 'distribution'
+    description = 'Creates distribution archive'
+    archiveFileName = "LogReader-${project.version}-dist.zip"
+    from shadowJar
+    from('README.md') { into '.' }
+    from('LICENSE') { into '.' }
+    from('docs/') { into 'docs/' }
+}
+
+task checkCode {
+    group = 'verification'
+    description = 'Runs code quality checks'
+    dependsOn compileJava, compileTestJava
+    doLast {
+        println "Code quality checks completed"
     }
+}
 
-    task runDebug(type: JavaExec) {
-        group = 'application'
-        description = 'Runs application in debug mode'
-        classpath = sourceSets.main.runtimeClasspath
-        mainClass = 'org.example.LogReader'
-        jvmArgs = [
-                '-Xdebug',
-                '-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005',
-                '-Dfile.encoding=UTF-8'
-        ]
-    }
+tasks.launch4j.dependsOn(tasks.shadowJar)
+tasks.build.dependsOn(tasks.shadowJar)
+tasks.compileJava.dependsOn(tasks.createResourcesDir)
 
-    task sourcesJar(type: Jar) {
-        group = 'build'
-        description = 'Creates JAR with source files'
-        archiveClassifier.set('sources')
-        from sourceSets.main.allSource
-    }
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
 
-    task javadocJar(type: Jar) {
-        group = 'documentation'
-        description = 'Creates JAR with JavaDoc'
-        archiveClassifier.set('javadoc')
-        from javadoc
-    }
+task packageAll {
+    group = 'distribution'
+    description = 'Creates all distribution packages'
+    dependsOn shadowJar, launch4j, createDistribution, sourcesJar, javadocJar
+}
 
-
-    task createDistribution(type: Zip) {
-        group = 'distribution'
-        description = 'Creates distribution archive'
-        archiveFileName = "LogReader-${project.version}-dist.zip"
-        from shadowJar
-        from('README.md') { into '.' }
-        from('LICENSE') { into '.' }
-        from('docs/') { into 'docs/' }
-    }
-
-    task checkCode {
-        group = 'verification'
-        description = 'Runs code quality checks'
-        dependsOn compileJava, compileTestJava
-        doLast {
-            println "Code quality checks completed"
+processResources {
+    filesMatching('**/*.properties') {
+        filter { line ->
+            line.replaceAll('@version@', project.version)
+                    .replaceAll('@buildDate@', new Date().format('yyyy-MM-dd HH:mm:ss'))
         }
     }
-
-    tasks.launch4j.dependsOn(tasks.shadowJar)
-    tasks.build.dependsOn(tasks.shadowJar)
-    tasks.compileJava.dependsOn(tasks.createResourcesDir)
-
-    tasks.withType(JavaCompile) {
-        options.encoding = 'UTF-8'
-    }
-
-    task packageAll {
-        group = 'distribution'
-        description = 'Creates all distribution packages'
-        dependsOn shadowJar, launch4j, createDistribution, sourcesJar, javadocJar
-    }
-
-    processResources {
-        filesMatching('**/*.properties') {
-            filter { line ->
-                line.replaceAll('@version@', project.version)
-                        .replaceAll('@buildDate@', new Date().format('yyyy-MM-dd HH:mm:ss'))
-            }
-        }
-    }
+}
