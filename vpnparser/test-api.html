@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPN Monitor - API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 VPN Monitor - API Test</h1>
+
+        <div>
+            <button class="button" onclick="testHealth()">Проверить Health</button>
+            <button class="button" onclick="getNodes()">Получить VPN узлы</button>
+            <button class="button" onclick="startScan()">Запустить сканирование</button>
+            <button class="button" onclick="clearStatus()">Очистить статус</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="nodes-container">
+            <h3>VPN Узлы:</h3>
+            <div id="nodes-table"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8082';
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function clearStatus() {
+            document.getElementById('status').innerHTML = '';
+        }
+
+        async function testHealth() {
+            try {
+                showStatus('Проверяю health endpoint...', 'info');
+                const response = await fetch(`${API_BASE}/actuator/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus(`✅ Health check успешен: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showStatus(`❌ Health check не удался: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Ошибка при проверке health: ${error.message}`, 'error');
+            }
+        }
+
+        async function getNodes() {
+            try {
+                showStatus('Загружаю VPN узлы...', 'info');
+                const response = await fetch(`${API_BASE}/api/vpn/nodes`);
+                if (response.ok) {
+                    const nodes = await response.json();
+                    showStatus(`✅ Загружено ${nodes.length} VPN узлов`, 'success');
+                    displayNodes(nodes);
+                } else {
+                    showStatus(`❌ Не удалось загрузить узлы: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Ошибка при загрузке узлов: ${error.message}`, 'error');
+            }
+        }
+
+        async function startScan() {
+            try {
+                showStatus('Запускаю сканирование...', 'info');
+                const response = await fetch(`${API_BASE}/api/vpn/scan`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus(`✅ Сканирование запущено: ${JSON.stringify(data)}`, 'success');
+                    // Ждем немного и загружаем обновленные данные
+                    setTimeout(getNodes, 2000);
+                } else {
+                    showStatus(`❌ Не удалось запустить сканирование: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Ошибка при запуске сканирования: ${error.message}`, 'error');
+            }
+        }
+
+        function displayNodes(nodes) {
+            const container = document.getElementById('nodes-table');
+
+            if (nodes.length === 0) {
+                container.innerHTML = '<p>Нет VPN узлов для отображения</p>';
+                return;
+            }
+
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя</th>
+                            <th>Endpoint</th>
+                            <th>Протокол</th>
+                            <th>Страна</th>
+                            <th>Пинг (мс)</th>
+                            <th>Скорость (KB/s)</th>
+                            <th>Uptime (%)</th>
+                            <th>Статус</th>
+                            <th>Последняя проверка</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            nodes.forEach(node => {
+                tableHTML += `
+                    <tr>
+                        <td>${node.id || 'N/A'}</td>
+                        <td>${node.name || 'N/A'}</td>
+                        <td>${node.endpoint || 'N/A'}</td>
+                        <td>${node.protocol || 'N/A'}</td>
+                        <td>${node.country || 'N/A'}</td>
+                        <td>${node.latency || 'N/A'}</td>
+                        <td>${node.bandwidth || 'N/A'}</td>
+                        <td>${node.uptime || 'N/A'}</td>
+                        <td>${node.status || 'N/A'}</td>
+                        <td>${node.lastCheck ? new Date(node.lastCheck).toLocaleString() : 'N/A'}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        }
+
+        // Автоматически загружаем узлы при загрузке страницы
+        window.onload = function() {
+            showStatus('Страница загружена. Нажмите "Получить VPN узлы" для загрузки данных.', 'info');
+        };
+    </script>
+</body>
+</html>

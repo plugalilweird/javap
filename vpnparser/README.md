@@ -1,96 +1,140 @@
-# VPN Monitor
+# 🔒 VPN Monitor Scanner
 
-Приложение на Spring Boot, которое периодически загружает данные о серверах VPN с API VPNGate, проверяет их доступность и сохраняет результаты в базу данных.
+Система мониторинга и сканирования VPN узлов с веб-интерфейсом.
 
-## Возможности
-- Загрузка данных о серверах VPN с API VPNGate (`http://www.vpngate.net/api/iphone/`).
-- Проверка доступности узлов VPN (reachability и connectivity).
-- Сохранение информации об узлах (например, имя хоста, endpoint, страна, задержка, пропускная способность, время работы, статус) в базе данных.
-- Предоставление REST API для запуска сканирования и получения данных об узлах.
-- Автоматическое сканирование каждые 30 минут.
+## 🚀 Быстрый запуск
 
+### Вариант 1: Автоматический запуск (Windows)
+1. Дважды кликните на `start-system.bat`
+2. Дождитесь запуска бэкенда (порт 8082)
+3. Автоматически откроется тестовая страница
 
+### Вариант 2: Ручной запуск
 
-## Инструкции по настройке
-
-### 1. Клонирование репозитория
+#### 1. Запуск бэкенда
 ```bash
-git clone <ваш-URL-репозитория>
-cd vpn-monitor
+# В корневой директории проекта
+.\gradlew bootRun
+```
+Бэкенд будет доступен на http://localhost:8082
+
+#### 2. Тестирование API
+Откройте `test-api.html` в браузере для тестирования API
+
+## 🌐 Доступные endpoints
+
+- **API**: http://localhost:8082/api/vpn/nodes
+- **Health Check**: http://localhost:8082/actuator/health
+- **H2 Console**: http://localhost:8082/h2-console
+- **Test Page**: test-api.html (откройте в браузере)
+
+## 🛠 Технологии
+
+### Backend
+- **Spring Boot 3.1.2** - основной фреймворк
+- **Spring Security** - безопасность
+- **Spring Data JPA** - работа с базой данных
+- **H2 Database** - in-memory база данных для разработки
+- **PostgreSQL** - production база данных
+- **Spring Actuator** - мониторинг приложения
+
+### Frontend
+- **HTML/CSS/JavaScript** - тестовая страница для проверки API
+
+## 📁 Структура проекта
+
+```
+freevpnscanner/
+├── src/main/java/com/example/vpnmonitor/
+│   ├── VpnMonitorApplication.java     # Главный класс приложения
+│   ├── config/
+│   │   └── SecurityConfig.java        # Конфигурация безопасности
+│   ├── controller/
+│   │   └── VPNController.java         # REST API контроллер
+│   ├── model/
+│   │   └── VPNNode.java               # Модель VPN узла
+│   ├── repository/
+│   │   └── VPNNodeRepository.java     # Репозиторий для работы с БД
+│   └── service/
+│       └── VPNScannerService.java     # Сервис сканирования
+├── src/main/resources/
+│   └── application.properties         # Конфигурация приложения
+├── src/main/vpn-ui/                   # React фронтенд
+├── test-api.html                      # Тестовая HTML страница
+├── start-system.bat                   # Скрипт запуска для Windows
+└── build.gradle                       # Конфигурация сборки
 ```
 
-### 2. Настройка базы данных
-Приложение поддерживает PostgreSQL. Настройте базу данных в файле `src/main/resources/application.properties`:
+## 🔧 Конфигурация
 
-#### Для PostgreSQL
+### База данных
+По умолчанию используется H2 in-memory база данных. Для переключения на PostgreSQL:
+
+1. Раскомментируйте настройки PostgreSQL в `application.properties`
+2. Закомментируйте настройки H2
+3. Убедитесь, что PostgreSQL запущен
+
+### Порт
+Бэкенд по умолчанию работает на порту 8082. Измените `server.port` в `application.properties` при необходимости.
+
+## 🧪 Тестирование
+
+### API Endpoints
+- `GET /api/vpn/nodes` - получить все VPN узлы
+- `POST /api/vpn/scan` - запустить сканирование
+- `POST /api/vpn/connect/{id}` - подключиться к узлу
+- `POST /api/vpn/disconnect` - отключиться
+
+### Тестовая страница
+Откройте `test-api.html` в браузере для интерактивного тестирования API.
+
+## 🚨 Устранение неполадок
+
+### Порт занят
+Если порт 8082 занят, измените `server.port` в `application.properties`
+
+### CORS ошибки
+Проверьте настройки CORS в `VpnMonitorApplication.java`
+
+### База данных
+- H2 консоль доступна по адресу http://localhost:8082/h2-console
+- JDBC URL: `jdbc:h2:mem:testdb`
+- Username: `sa`
+- Password: (пустое)
+
+## 📝 Логи
+
+Логи приложения выводятся в консоль. Для включения debug режима добавьте в `application.properties`:
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/vpnmonitor
-spring.datasource.username=ваше-имя-пользователя
-spring.datasource.password=ваш-пароль
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+logging.level.com.example.vpnmonitor=DEBUG
 ```
 
+## 🔒 Безопасность
 
+- Spring Security включен по умолчанию
+- API endpoints `/api/**` доступны без аутентификации
+- H2 консоль и Actuator endpoints также доступны
+- Для production настройте аутентификацию и авторизацию
 
+## 📊 Мониторинг
 
-Убедитесь, что сервер PostgreSQL запущен, если вы используете его. 
+Spring Actuator предоставляет следующие endpoints:
+- `/actuator/health` - состояние приложения
+- `/actuator/info` - информация о приложении
+- `/actuator/metrics` - метрики
 
-### 3. Сборка и запуск приложения
-```bash
-./mvnw clean install
-./mvnw spring-boot:run
-```
+## 🤝 Разработка
 
-Приложение запустится на `http://localhost:8080`.
+### Добавление новых endpoints
+1. Создайте метод в `VPNController`
+2. Добавьте маппинг с аннотацией `@RequestMapping`
+3. Обновите CORS конфигурацию при необходимости
 
+### Изменение модели данных
+1. Обновите `VPNNode.java`
+2. Измените `spring.jpa.hibernate.ddl-auto` на `update` или `create-drop`
+3. Перезапустите приложение
 
+## 📄 Лицензия
 
-## Структура проекта
-- **VpnMonitorApplication.java**: Главный класс приложения.
-- **VPNScannerService.java**: Сервис для загрузки, парсинга и проверки узлов VPN.
-- **VPNNode.java**: JPA-сущность для хранения данных об узлах VPN.
-- **VPNNodeRepository.java**: JPA-репозиторий для операций с базой данных.
-- **VPNController.java**: REST-контроллер для точек API.
-- **build.gradle**: Конфигурация сборки Gradle.
-
-
-## Что делать с записями в таблице `vpn_nodes`?
-
-После запуска приложения и выполнения сканирования в таблице `vpn_nodes` будут сохранены данные об узлах VPN. Вот подробный гайд, как использовать эти записи:
-
-### 1. Просмотр данных
-- Используйте SQL-запрос для просмотра записей:
-  ```sql
-  SELECT * FROM vpn_nodes;
-  ```
-- В pgAdmin или другой клиентской утилите вы увидите колонки, такие как:
-  - `id`: Уникальный идентификатор узла.
-  - `name`: Имя хоста узла VPN.
-  - `endpoint`: Адрес и порт в формате `IP:порт` (например, `vpn678903953:12345`).
-  - `country`: Страна узла.
-  - `latency`: Задержка в миллисекундах (если доступен).
-  - `bandwidth`: Пропускная способность в бит/с.
-  - `uptime`: Время работы узла в процентах.
-  - `protocol`: Протокол (например, `OpenVPN-UDP`).
-  - `status`: Статус узла (`online`, `offline`, или `unknown`).
-  - `last_check`: Время последней проверки.
-
-### 2. Использование `endpoint` для подключения
-- Колонка `endpoint` содержит адрес и порт узла в формате `IP:порт` (например, `vpn678903953:12345`).
-- Этот адрес можно использовать для подключения к VPN-серверу через клиент OpenVPN:
-  1. **Скачайте конфигурацию OpenVPN**:
-     - Перейдите на сайт VPNGate (https://www.vpngate.net/) и найдите конфигурационный файл `.ovpn` для нужного узла. Обычно такие файлы доступны в разделе загрузок.
-     - Или извлеките конфигурацию из API (если доступна в базе данных через декодирование Base64, как в коде).
-  2. **Отредактируйте конфигурацию**:
-     - Откройте файл `.ovpn` в текстовом редакторе.
-     - Найдите строку `remote` и замените её на значение из колонки `endpoint` (например, `remote vpn678903953 12345`).
-  3. **Подключитесь с помощью OpenVPN**:
-     - Используйте клиент OpenVPN (например, OpenVPN GUI на Windows или `openvpn` в терминале на Linux/Mac):
-       ```bash
-       openvpn --config ваш_файл.ovpn
-       ```
-     - Введите учетные данные, если они запрошены (обычно для публичных серверов VPNGate они не требуются).
-  4. **Проверка подключения**:
-     - После успешного подключения проверьте свой IP-адрес (например, через сайт https://whatismyipaddress.com/) — он должен совпадать с страной узла.
-
+Этот проект предназначен для образовательных целей.
